@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">ttt</string>
+    <string name="subtitle">talk to text - הכתבה מהטלפון למחשב</string>
+    <string name="address_label">כתובת המחשב (IP:port)</string>
+    <string name="connect">התחבר והפעל</string>
+    <string name="stop">עצור והתנתק</string>
+    <string name="idle">לא פעיל</string>
+    <string name="connecting">מתחבר</string>
+    <string name="stopped">נעצר</string>
+    <string name="enter_address">הזן את כתובת המחשב</string>
+    <string name="need_mic">צריך הרשאת מיקרופון, אשר אותה</string>
+</resources>
