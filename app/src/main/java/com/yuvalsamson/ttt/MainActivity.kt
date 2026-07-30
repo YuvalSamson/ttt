@@ -19,6 +19,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var b: ActivityMainBinding
     private lateinit var prefs: SharedPreferences
 
+    private val defaultAddress = "192.168.7.36:8765"
+
     private val statusReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             val s = intent?.getStringExtra(TttService.EXTRA_STATUS) ?: return
@@ -32,38 +34,48 @@ class MainActivity : AppCompatActivity() {
         setContentView(b.root)
 
         prefs = getSharedPreferences("ttt", Context.MODE_PRIVATE)
-        b.address.setText(prefs.getString("address", ""))
+        b.address.setText(prefs.getString("address", defaultAddress))
 
         requestPerms()
 
-        b.connectBtn.setOnClickListener {
-            val addr = b.address.text.toString().trim()
-            if (addr.isEmpty()) {
-                b.status.text = getString(R.string.enter_address)
-                return@setOnClickListener
-            }
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
-                != PackageManager.PERMISSION_GRANTED
-            ) {
-                b.status.text = getString(R.string.need_mic)
-                requestPerms()
-                return@setOnClickListener
-            }
-            prefs.edit().putString("address", addr).apply()
-            val i = Intent(this, TttService::class.java).apply {
-                action = TttService.ACTION_START
-                putExtra(TttService.EXTRA_ADDRESS, addr)
-            }
-            ContextCompat.startForegroundService(this, i)
-            b.status.text = getString(R.string.connecting)
-        }
+        b.connectBtn.setOnClickListener { startConnection() }
 
         b.stopBtn.setOnClickListener {
             val i = Intent(this, TttService::class.java).apply { action = TttService.ACTION_STOP }
             startService(i)
             b.status.text = getString(R.string.stopped)
         }
+
+        // Auto-connect on open: if we already have an address and mic permission,
+        // start the background service immediately - no button press needed.
+        if (hasMic() && b.address.text.toString().trim().isNotEmpty()) {
+            startConnection()
+        }
     }
+
+    private fun startConnection() {
+        val addr = b.address.text.toString().trim()
+        if (addr.isEmpty()) {
+            b.status.text = getString(R.string.enter_address)
+            return
+        }
+        if (!hasMic()) {
+            b.status.text = getString(R.string.need_mic)
+            requestPerms()
+            return
+        }
+        prefs.edit().putString("address", addr).apply()
+        val i = Intent(this, TttService::class.java).apply {
+            action = TttService.ACTION_START
+            putExtra(TttService.EXTRA_ADDRESS, addr)
+        }
+        ContextCompat.startForegroundService(this, i)
+        b.status.text = getString(R.string.connecting)
+    }
+
+    private fun hasMic() =
+        ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) ==
+            PackageManager.PERMISSION_GRANTED
 
     override fun onResume() {
         super.onResume()
@@ -78,6 +90,16 @@ class MainActivity : AppCompatActivity() {
         try {
             unregisterReceiver(statusReceiver)
         } catch (_: Exception) {
+        }
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int, permissions: Array<out String>, grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        // Once mic is granted, connect automatically.
+        if (hasMic() && b.address.text.toString().trim().isNotEmpty()) {
+            startConnection()
         }
     }
 
