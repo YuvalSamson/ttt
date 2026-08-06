@@ -61,6 +61,8 @@ class TttService : Service() {
                 address = intent.getStringExtra(EXTRA_ADDRESS) ?: address
                 startForeground(NOTIF_ID, buildNotification("מחובר, ממתין"))
                 running = true
+                // connect() drops any existing (possibly dead) socket first, so every
+                // START is a clean reconnect - this is what revives it in the morning.
                 connect()
             }
             else -> {
@@ -79,6 +81,11 @@ class TttService : Service() {
 
     private fun connect() {
         if (!running) return
+        try {
+            ws?.cancel()   // drop any previous socket before opening a new one
+        } catch (_: Exception) {
+        }
+        ws = null
         val client = OkHttpClient.Builder()
             .pingInterval(20, TimeUnit.SECONDS)
             .readTimeout(0, TimeUnit.MILLISECONDS)
@@ -212,15 +219,30 @@ class TttService : Service() {
     }
 
     // ---------------- Beep mute ----------------
+    // The speech recognizer plays a short earcon on every (re)start. Mute the
+    // streams it may use while we are listening, then restore afterwards.
+    private val beepStreams = intArrayOf(
+        AudioManager.STREAM_MUSIC,
+        AudioManager.STREAM_SYSTEM,
+        AudioManager.STREAM_NOTIFICATION
+    )
+
     private fun muteBeep(mute: Boolean) {
-        try {
-            val am = getSystemService(AUDIO_SERVICE) as AudioManager
-            am.adjustStreamVolume(
-                AudioManager.STREAM_MUSIC,
-                if (mute) AudioManager.ADJUST_MUTE else AudioManager.ADJUST_UNMUTE,
-                0
-            )
+        val am = try {
+            getSystemService(AUDIO_SERVICE) as AudioManager
         } catch (_: Exception) {
+            return
+        }
+        for (s in beepStreams) {
+            try {
+                am.adjustStreamVolume(
+                    s,
+                    if (mute) AudioManager.ADJUST_MUTE else AudioManager.ADJUST_UNMUTE,
+                    0
+                )
+            } catch (_: Exception) {
+                // some streams need Do-Not-Disturb access; ignore if not allowed
+            }
         }
     }
 

@@ -83,6 +83,11 @@ class MainActivity : AppCompatActivity() {
         ContextCompat.registerReceiver(
             this, statusReceiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED
         )
+        // Bringing the app to the foreground forces a fresh reconnect. This is what
+        // makes it "just work" in the morning after the phone has been asleep.
+        if (hasMic() && b.address.text.toString().trim().isNotEmpty()) {
+            startConnection()
+        }
     }
 
     override fun onPause() {
