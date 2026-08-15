@@ -161,6 +161,14 @@ class TttService : Service() {
             putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
             putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, false)
             putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE, packageName)
+            // Ask Google to add automatic punctuation/formatting (Android 13+).
+            // Support varies by language; if Hebrew ignores it there is no harm.
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                putExtra(
+                    RecognizerIntent.EXTRA_ENABLE_FORMATTING,
+                    RecognizerIntent.FORMATTING_OPTIMIZE_QUALITY
+                )
+            }
         }
         try {
             recognizer?.startListening(i)
